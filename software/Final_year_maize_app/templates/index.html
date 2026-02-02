@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Maize Disease Detection</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background: #f8f9fa; }
+        .upload-box {
+            margin-top: 100px;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .btn-upload {
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .file-input {
+            margin: 20px 0;
+        }
+        .result-box {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+        .divider {
+            margin: 30px 0;
+            border-top: 2px solid #e9ecef;
+            position: relative;
+        }
+        .divider::after {
+            content: "OR";
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 15px;
+            color: #6c757d;
+            font-weight: bold;
+        }
+        .camera-section {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .loading {
+            display: none;
+        }
+        .btn-camera {
+            background: #28a745;
+            border: none;
+            color: white;
+        }
+        .btn-camera:hover {
+            background: #218838;
+            color: white;
+        }
+    </style>
+</head>
+<body class="container">
+
+    <div class="upload-box">
+        <h1 class="mb-3">🌽 Maize Disease Detection</h1>
+        <p class="text-muted">Choose how you want to analyze a maize leaf for diseases.</p>
+
+        <!-- OPTION 1: File Upload -->
+        <div class="upload-section">
+            <h4>📁 Upload Image File</h4>
+            <p class="text-muted">Select an image from your device</p>
+            
+            <form id="uploadForm" action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" accept="image/*" required class="form-control file-input">
+                <button type="submit" class="btn btn-success btn-upload">Upload & Analyze</button>
+            </form>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- OPTION 2: ESP32 Camera -->
+        <div class="camera-section">
+            <h4>📸 Use ESP32 Camera</h4>
+            <p class="text-muted">Capture a live image using your connected ESP32 camera</p>
+            
+            <button id="captureBtn" class="btn btn-camera btn-upload">
+                📷 Capture with ESP32 Camera
+            </button>
+            
+            <div id="cameraLoading" class="loading mt-3">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Capturing...</span>
+                </div>
+                <p class="mt-2">Capturing image from ESP32...</p>
+            </div>
+            
+            <div id="cameraError" style="display: none;" class="alert alert-danger mt-3">
+                <strong>Camera Error:</strong> <span id="cameraErrorMsg"></span>
+            </div>
+        </div>
+
+        <!-- Result Box -->
+        <div id="resultBox" class="result-box">
+            <h3 id="resultLabel"></h3>
+            <p id="resultConfidence"></p>
+            <h4>📌 Disease Information</h4>
+            <p id="resultInfo"></p>
+            <h4>💡 Suggested Solution</h4>
+            <p id="resultSolution"></p>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Dashboard navigation -->
+        <a href="/dashboard" class="btn btn-primary btn-upload">📊 Go to Dashboard</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            // Handle file upload
+            $('#uploadForm').submit(function (e) {
+                e.preventDefault();
+                
+                var formData = new FormData(this);
+                
+                // Hide any previous results/errors
+                $('#resultBox').hide();
+                $('#cameraError').hide();
+
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (response) {
+                        showResult(response);
+                    },
+                    error: function (xhr) {
+                        var errorMsg = "An error occurred while uploading the image.";
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMsg = xhr.responseJSON.error;
+                        }
+                        alert(errorMsg);
+                    }
+                });
+            });
+
+            // Handle ESP32 camera capture
+            $('#captureBtn').click(function() {
+                // Show loading, hide errors and results
+                $('#cameraLoading').show();
+                $('#cameraError').hide();
+                $('#resultBox').hide();
+                
+                // Disable button during capture
+                $(this).prop('disabled', true);
+                
+                $.ajax({
+                    url: '/trigger_esp32',
+                    type: 'POST',
+                    timeout: 15000, // 15 second timeout
+                    success: function(response) {
+                        $('#cameraLoading').hide();
+                        $('#captureBtn').prop('disabled', false);
+                        
+                        if (response.status === 'success') {
+                            // Wait a moment for the image to be processed, then check for new uploads
+                            setTimeout(function() {
+                                // You could refresh the page or fetch the latest result
+                                // For now, show a success message
+                                alert('Photo captured successfully! Check the dashboard for results.');
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            showCameraError(response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        $('#cameraLoading').hide();
+                        $('#captureBtn').prop('disabled', false);
+                        
+                        var errorMsg = "Failed to connect to ESP32 camera.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
+                        showCameraError(errorMsg);
+                    }
+                });
+            });
+
+            function showResult(response) {
+                $('#resultLabel').text("Detected: " + response.label);
+                $('#resultConfidence').text("Confidence: " + (response.confidence * 100).toFixed(2) + "%");
+                $('#resultInfo').text(response.info);
+                $('#resultSolution').text(response.solution);
+                $('#resultBox').show();
+            }
+
+            function showCameraError(message) {
+                $('#cameraErrorMsg').text(message);
+                $('#cameraError').show();
+            }
+        });
+    </script>
+
+</body>
+</html>

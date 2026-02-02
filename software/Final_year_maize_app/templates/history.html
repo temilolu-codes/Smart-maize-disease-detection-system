@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Detection History - Maize Disease Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .history-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .history-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .history-item {
+            border: none;
+            padding: 20px;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .history-item:hover {
+            background: #f8f9fa;
+            border-left-color: #28a745;
+            transform: translateX(5px);
+        }
+        .item-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin-right: 15px;
+        }
+        .item-content {
+            flex: 1;
+        }
+        .item-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .item-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .confidence-badge {
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .healthy-badge {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        .disease-badge {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: white;
+        }
+        .source-tag {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-left: 10px;
+        }
+        .esp32-tag {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .web-tag {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        .stats-row {
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            height: 100%;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .no-history {
+            background: white;
+            border-radius: 20px;
+            padding: 60px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .action-buttons {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .btn-custom {
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .error-image {
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+<div class="history-container">
+    <!-- Header -->
+    <div class="header-card">
+        <h1 class="fw-bold text-primary">Detection History</h1>
+        <p class="text-muted mb-0">Track all your maize disease detection results over time</p>
+    </div>
+
+    {% if items and items|length > 0 %}
+        <!-- Statistics Row -->
+        <div class="row stats-row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number text-primary">{{ items|length }}</div>
+                    <div>Total Scans</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number text-success">{{ items|selectattr("label", "equalto", "Healthy")|list|length }}</div>
+                    <div>Healthy Plants</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-number text-warning">{{ (items|length) - (items|selectattr("label", "equalto", "Healthy")|list|length) }}</div>
+                    <div>Diseases Found</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    {% set total_confidence = items|map(attribute="confidence")|sum %}
+                    {% set avg_confidence = (total_confidence / items|length * 100) if items|length > 0 else 0 %}
+                    <div class="stat-number text-info">{{ avg_confidence | round(1) }}%</div>
+                    <div>Avg Confidence</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History List -->
+        <div class="history-card">
+            <div class="list-group list-group-flush">
+                {% for item in items %}
+                <div class="list-group-item history-item d-flex align-items-center">
+                    <!-- Image with error handling -->
+                    <div class="item-image">
+                        <img src="{{ url_for('static', filename='uploads/' + item.filename) }}" 
+                             alt="Analysis result"
+                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;"
+                             onerror="this.parentElement.innerHTML='<div class=&quot;error-image&quot; style=&quot;width: 60px; height: 60px; border-radius: 10px;&quot;>No Image</div>'">
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="item-content">
+                        <div class="item-label">
+                            {% if item.label == "Healthy" %}
+                                <span class="text-success">Healthy</span>
+                            {% else %}
+                                <span class="text-warning">{{ item.label }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="item-meta">
+                            {{ item.time if item.time else 'Unknown time' }}
+                            <span class="source-tag {{ 'esp32-tag' if item.source == 'ESP32' else 'web-tag' }}">
+                                {% if item.source == "ESP32" %}
+                                    ESP32 Camera
+                                {% else %}
+                                    Web Upload
+                                {% endif %}
+                            </span>
+                        </div>
+                        <small class="text-muted">{{ item.filename }}</small>
+                    </div>
+                    
+                    <!-- Confidence Badge -->
+                    <div>
+                        <span class="confidence-badge {{ 'healthy-badge' if item.label == 'Healthy' else 'disease-badge' }}">
+                            {{ (item.confidence * 100) | round(1) }}%
+                        </span>
+                        <div class="mt-2">
+                            <a href="/result/{{ item.filename }}" class="btn btn-sm btn-outline-primary">
+                                Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-success btn-custom" onclick="exportToCSV()">
+                Export to CSV
+            </button>
+            <button class="btn btn-outline-info btn-custom" onclick="printReport()">
+                Print Report
+            </button>
+        </div>
+
+    {% else %}
+        <!-- No History State -->
+        <div class="no-history">
+            <h3 class="text-muted mb-4">No Analysis History</h3>
+            <p class="text-muted mb-4">You haven't analyzed any maize leaves yet. Start by uploading an image or using your ESP32 camera!</p>
+            <div>
+                <a href="/" class="btn btn-success btn-custom">Take First Photo</a>
+                <a href="/dashboard" class="btn btn-outline-primary btn-custom">View Dashboard</a>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <a class="btn btn-success btn-custom" href="/">
+            New Analysis
+        </a>
+        <a class="btn btn-primary btn-custom" href="/dashboard">
+            Dashboard
+        </a>
+        <button class="btn btn-outline-secondary btn-custom" onclick="window.location.reload()">
+            Refresh
+        </button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function exportToCSV() {
+    try {
+        // Get items data from Flask
+        const items = {{ items | tojson | safe }};
+        
+        if (!items || items.length === 0) {
+            alert('No data to export!');
+            return;
+        }
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Filename,Disease,Confidence,Time,Source\n";
+        
+        items.forEach(function(item) {
+            // Handle missing data gracefully
+            const filename = item.filename || 'Unknown';
+            const label = item.label || 'Unknown';
+            const confidence = item.confidence ? (item.confidence * 100).toFixed(1) + "%" : '0%';
+            const time = item.time || 'Unknown';
+            const source = item.source || 'Unknown';
+            
+            // Escape commas and quotes in CSV data
+            const row = [
+                `"${filename}"`,
+                `"${label}"`,
+                `"${confidence}"`,
+                `"${time}"`,
+                `"${source}"`
+            ].join(",");
+            csvContent += row + "\n";
+        });
+        
+        // Create download link
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "maize_analysis_history.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+    } catch (error) {
+        console.error('Error exporting CSV:', error);
+        alert('Error exporting data. Please try again.');
+    }
+}
+
+function printReport() {
+    window.print();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Maize Disease Detection</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background: #f8f9fa; }
+        .container { margin-top: 40px; }
+        .card img { height: 180px; object-fit: cover; }
+        .demo-section { margin-bottom: 50px; }
+        .history-img { height: 60px; width: 60px; border-radius: 8px; object-fit: cover; }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .confidence-badge {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .disease-label {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+        .section-header {
+            border-bottom: 3px solid #28a745;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            color: #2d5a2d;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="mb-5 text-center text-success">🌽 Maize Disease Detection Dashboard</h1>
+
+    <!-- DEMO DETECTIONS SECTION -->
+    <div class="demo-section">
+        <h3 class="section-header">🔬 Demo Detections</h3>
+        {% if demo_results %}
+        <div class="row">
+            {% for item in demo_results %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="card h-100">
+                    <img src="{{ url_for('static', filename='demo/' + item.filename) }}" 
+                         class="card-img-top" alt="Demo Image - {{ item.label }}">
+                    <div class="card-body text-center d-flex flex-column">
+                        <h5 class="disease-label">{{ item.label }}</h5>
+                        <div class="mt-auto">
+                            <span class="confidence-badge">{{ item.confidence }}% confident</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-data">
+            <p class="text-muted">No demo images found. Please add demo images to the demo folder.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <hr class="my-5">
+
+    <!-- PREDICTION HISTORY SECTION -->
+    <h3 class="section-header">📂 Detection History</h3>
+    {% if history %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 80px;">Image</th>
+                    <th>Filename</th>
+                    <th>Detected Disease</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in history %}
+                <tr>
+                    <td>
+                        <img src="{{ url_for('static', filename='uploads/' + record.filename) }}" 
+                             class="history-img shadow-sm" alt="Uploaded image">
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ record.filename }}</small>
+                    </td>
+                    <td>
+                        <a href="/result/{{ record.filename }}" class="text-decoration-none">
+                            <strong class="text-primary">{{ record.label }}</strong>
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge bg-success">{{ (record.confidence * 100) | round(1) }}%</span>
+                    </td>
+                    <td>
+                        {% if record.label == "Healthy" %}
+                            <span class="badge bg-success">✅ Healthy</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">⚠️ Disease Detected</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white text-center">
+                <div class="card-body">
+                    <h4>{{ history|length }}</h4>
+                    <p class="mb-0">Total Scans</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white text-center">
+                <div class="card-body">
+                    <h4>{{ history|selectattr("label", "equalto", "Healthy")|list|length }}</h4>
+                    <p class="mb-0">Healthy Plants</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark text-center">
+                <div class="card-body">
+                    <h4>{{ (history|length) - (history|selectattr("label", "equalto", "Healthy")|list|length) }}</h4>
+                    <p class="mb-0">Diseases Found</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white text-center">
+                <div class="card-body">
+                    <h4>{{ ((history|map(attribute="confidence")|sum / history|length) * 100) | round(1) if history|length > 0 else 0 }}%</h4>
+                    <p class="mb-0">Avg Confidence</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-data">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="text-muted">📁 No uploads yet</h5>
+                <p class="text-muted">Start by uploading an image or using the ESP32 camera to capture your first maize leaf image.</p>
+                <a href="/" class="btn btn-success">📸 Take First Photo</a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation -->
+    <div class="text-center mt-5 mb-4">
+        <a href="/" class="btn btn-success btn-lg me-3">
+            <i class="bi bi-camera"></i> 📸 Capture New Image
+        </a>
+        <a href="/history" class="btn btn-outline-primary">
+            📊 View JSON History
+        </a>
+    </div>
+</div>
+
+<!-- Bootstrap JavaScript for better interactivity -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

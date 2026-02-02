@@ -1,0 +1,17 @@
+# Core Web Framework
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Machine Learning & Image Processing
+tensorflow==2.13.0
+numpy==1.24.3
+Pillow==10.0.1
+
+# HTTP Requests (for ESP32 communication)
+requests==2.31.0
+
+# File Security
+secure-filename==0.1
+
+# Optional: For better development experience
+python-dotenv==1.0.0
