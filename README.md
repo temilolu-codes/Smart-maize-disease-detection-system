@@ -1,3 +1,5 @@
+> **TL;DR:**  
+> An IoT-enabled smart system that uses an ESP32-S3 camera and image classification to detect maize diseases, with environmental monitoring for improved agricultural decision-making.
 
 # Smart Maize Disease Detection System
 
@@ -5,6 +7,15 @@
 This project is a final year Computer Engineering project that implements a smart system for detecting maize diseases using image classification and IoT-based environmental monitoring.
 
 The system captures images of maize leaves using an ESP32-S3 camera module and collects temperature and humidity data using environmental sensors. The captured data is processed to identify possible disease conditions and provide feedback to the user.
+
+## Project Preview
+
+### Hardware Setup
+![System Hardware Setup](images/Hardware%20setup%20photos/system%20hardware%20setup.png)
+
+### System Flow Diagram
+![System Flowchart](images/System%20Diagrams/system%20flowchart.png)
+
 
 ## Objectives
 - To design a smart system for maize disease detection
@@ -64,7 +75,21 @@ images/ # Hardware setup, diagrams, and results
 docs/ # Project report
 README.md
 
+## Key Skills Demonstrated
+- Embedded systems development (ESP32-S3)
+- Camera interfacing and image acquisition
+- IoT sensor integration (DHT22)
+- Image classification for crop disease detection
+- Python-based application development
+- System documentation and version control (Git/GitHub)
+
+## Future Improvements
+- Deployment of the model on edge devices for real-time inference
+- Integration with cloud platforms for large-scale monitoring
+- Support for additional crop types and diseases
+- Mobile application interface for farmers
 
 ## Author
 **Temiloluwa Folorunso**  
 Computer Engineering, Obafemi Awolowo University
+
